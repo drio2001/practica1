@@ -1577,7 +1577,6 @@ func menuTaller() {
 // Datos de prueba (opcional)
 // *******************************************************************************
 
-// ...existing code...
 func cargarDatosPrueba() {
 	// Reiniciar datos para prueba reproducible
 	clientes = []*Cliente{}
