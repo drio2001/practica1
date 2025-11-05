@@ -31,15 +31,6 @@ type Vehiculo struct {
 	NumeroPlaza  int
 }
 
-type Mecanico struct {
-	ID           int
-	Nombre       string
-	Especialidad string
-	AniosExp     int
-	Activo       bool
-	Incidencias  []*Incidencia
-}
-
 type Incidencia struct {
 	ID          int
 	Mecanicos   []*Mecanico
@@ -47,6 +38,14 @@ type Incidencia struct {
 	Prioridad   string
 	Descripcion string
 	Estado      string
+}
+type Mecanico struct {
+	ID           int
+	Nombre       string
+	Especialidad string
+	AniosExp     int
+	Activo       bool
+	Incidencias  []*Incidencia
 }
 
 type Taller struct {
@@ -73,10 +72,10 @@ var (
 
 func limpiarPantalla() {
 	var cmd *exec.Cmd
-	if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
-		cmd = exec.Command("clear")
+	if runtime.GOOS == "windows" {
+		cmd = exec.Command("cmd", "/c", "cls", "clear")
 	} else {
-		cmd = exec.Command("cmd", "/c", "cls")
+		cmd = exec.Command("clear")
 	}
 	cmd.Stdout = os.Stdout
 	cmd.Run()
@@ -1578,8 +1577,21 @@ func menuTaller() {
 // Datos de prueba (opcional)
 // *******************************************************************************
 
+// ...existing code...
 func cargarDatosPrueba() {
-	// Crear mecánicos
+	// Reiniciar datos para prueba reproducible
+	clientes = []*Cliente{}
+	vehiculos = []*Vehiculo{}
+	incidencias = []*Incidencia{}
+	mecanicos = []*Mecanico{}
+	taller.Mecanicos = []*Mecanico{}
+	taller.PlazasOcupadas = make(map[int]bool)
+
+	contadorCliente = 1
+	contadorMecanico = 1
+	contadorIncidencia = 1
+
+	// Crear mecánicos (3 activos + 1 de baja)
 	mec1 := &Mecanico{
 		ID:           contadorMecanico,
 		Nombre:       "Juan Pérez",
@@ -1616,6 +1628,22 @@ func cargarDatosPrueba() {
 	taller.Mecanicos = append(taller.Mecanicos, mec3)
 	contadorMecanico++
 
+	// mecánico de baja (para demostrar altas/bajas)
+	mec4 := &Mecanico{
+		ID:           contadorMecanico,
+		Nombre:       "Luis Díaz",
+		Especialidad: "mecánica",
+		AniosExp:     3,
+		Activo:       false,
+		Incidencias:  []*Incidencia{},
+	}
+	mecanicos = append(mecanicos, mec4)
+	taller.Mecanicos = append(taller.Mecanicos, mec4)
+	contadorMecanico++
+
+	// Actualizar total de plazas según mecánicos activos
+	taller.TotalPlazas = calcularTotalPlazas()
+
 	// Crear clientes
 	cliente1 := &Cliente{
 		ID:       contadorCliente,
@@ -1637,46 +1665,144 @@ func cargarDatosPrueba() {
 	clientes = append(clientes, cliente2)
 	contadorCliente++
 
-	// Crear vehículos
-	vehiculo1 := &Vehiculo{
+	cliente3 := &Cliente{
+		ID:       contadorCliente,
+		Nombre:   "Laura Gómez",
+		Telefono: "600555666",
+		Email:    "laura@email.com",
+		Vehiculo: nil,
+	}
+	clientes = append(clientes, cliente3)
+	contadorCliente++
+
+	cliente4 := &Cliente{
+		ID:       contadorCliente,
+		Nombre:   "Martín Ruiz",
+		Telefono: "600777888",
+		Email:    "martin@email.com",
+		Vehiculo: nil,
+	}
+	clientes = append(clientes, cliente4)
+	contadorCliente++
+
+	cliente5 := &Cliente{
+		ID:       contadorCliente,
+		Nombre:   "Jorge Ramírez",
+		Telefono: "600111333",
+		Email:    "jorge@email.com",
+		Vehiculo: nil,
+	}
+	clientes = append(clientes, cliente5)
+	contadorCliente++
+
+	// Crear vehículos y asociar a clientes
+	veh1 := &Vehiculo{
 		Matricula:    "1234ABC",
 		Marca:        "Seat",
 		Modelo:       "León",
 		FechaEntrada: obtenerFechaActual(),
 		FechaSalida:  "",
 		Incidencia:   nil,
-		EnTaller:     false,
-		NumeroPlaza:  -1,
+		EnTaller:     true,
+		NumeroPlaza:  1,
 	}
-	vehiculos = append(vehiculos, vehiculo1)
-	cliente1.Vehiculo = vehiculo1
+	vehiculos = append(vehiculos, veh1)
+	cliente1.Vehiculo = veh1
+	taller.PlazasOcupadas[1] = true
 
-	vehiculo2 := &Vehiculo{
+	veh2 := &Vehiculo{
 		Matricula:    "5678XYZ",
 		Marca:        "Volkswagen",
 		Modelo:       "Golf",
 		FechaEntrada: obtenerFechaActual(),
 		FechaSalida:  "",
 		Incidencia:   nil,
+		EnTaller:     true,
+		NumeroPlaza:  2,
+	}
+	vehiculos = append(vehiculos, veh2)
+	cliente2.Vehiculo = veh2
+	taller.PlazasOcupadas[2] = true
+
+	veh3 := &Vehiculo{
+		Matricula:    "9999QWE",
+		Marca:        "Toyota",
+		Modelo:       "Yaris",
+		FechaEntrada: obtenerFechaActual(),
+		FechaSalida:  "",
+		Incidencia:   nil,
 		EnTaller:     false,
 		NumeroPlaza:  -1,
 	}
-	vehiculos = append(vehiculos, vehiculo2)
-	cliente2.Vehiculo = vehiculo2
+	vehiculos = append(vehiculos, veh3)
+	cliente3.Vehiculo = veh3
 
-	// Crear incidencias
+	veh4 := &Vehiculo{
+		Matricula:    "4444ZZZ",
+		Marca:        "Ford",
+		Modelo:       "Focus",
+		FechaEntrada: obtenerFechaActual(),
+		FechaSalida:  "",
+		Incidencia:   nil,
+		EnTaller:     false,
+		NumeroPlaza:  -1,
+	}
+	vehiculos = append(vehiculos, veh4)
+	cliente4.Vehiculo = veh4
+
+	// Crear incidencias con distintos estados y asignaciones
 	inc1 := &Incidencia{
 		ID:          contadorIncidencia,
-		Mecanicos:   []*Mecanico{},
+		Mecanicos:   []*Mecanico{mec1}, // asignado
 		Tipo:        "mecánica",
 		Prioridad:   "alta",
 		Descripcion: "Cambio de correa de distribución",
 		Estado:      "abierta",
 	}
 	incidencias = append(incidencias, inc1)
-	vehiculo1.Incidencia = inc1
+	veh1.Incidencia = inc1
+	mec1.Incidencias = append(mec1.Incidencias, inc1)
 	contadorIncidencia++
 
+	inc2 := &Incidencia{
+		ID:          contadorIncidencia,
+		Mecanicos:   []*Mecanico{mec2}, // asignado
+		Tipo:        "eléctrica",
+		Prioridad:   "media",
+		Descripcion: "Fallo en centralita eléctrica",
+		Estado:      "en proceso",
+	}
+	incidencias = append(incidencias, inc2)
+	veh2.Incidencia = inc2
+	mec2.Incidencias = append(mec2.Incidencias, inc2)
+	contadorIncidencia++
+
+	inc3 := &Incidencia{
+		ID:          contadorIncidencia,
+		Mecanicos:   []*Mecanico{}, // sin asignar
+		Tipo:        "carrocería",
+		Prioridad:   "baja",
+		Descripcion: "Pequeño golpe en paragolpes",
+		Estado:      "abierta",
+	}
+	incidencias = append(incidencias, inc3)
+	veh3.Incidencia = inc3
+	contadorIncidencia++
+
+	inc4 := &Incidencia{
+		ID:          contadorIncidencia,
+		Mecanicos:   []*Mecanico{mec1}, // mec1 puede tener varias incidencias
+		Tipo:        "mecánica",
+		Prioridad:   "media",
+		Descripcion: "Revisión y ajuste de frenos",
+		Estado:      "cerrada",
+	}
+	incidencias = append(incidencias, inc4)
+	veh4.Incidencia = inc4
+	mec1.Incidencias = append(mec1.Incidencias, inc4)
+	contadorIncidencia++
+
+	// Actualizar total de plazas por si cambió el estado de mecánicos
 	taller.TotalPlazas = calcularTotalPlazas()
 
 	fmt.Println("Datos de prueba cargados exitosamente")
@@ -1700,10 +1826,8 @@ func main() {
 	for {
 		limpiarPantalla()
 		fmt.Println("╔════════════════════════════════════════╗")
-		fmt.Println("║										║")
 		fmt.Println("║   	SISTEMA DE GESTION DE TALLER     ║")
 		fmt.Println("║          	MECANICO                 ║")
-		fmt.Println("║										║")
 		fmt.Println("╚════════════════════════════════════════╝")
 		fmt.Println()
 		fmt.Println("1. Gestión de Clientes")
